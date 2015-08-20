@@ -52,25 +52,27 @@ getHits =
      page <- asJSON response
      return $ page ^. responseBody
 
-
-
 frequency :: [Word] -> Map Text Int
-frequency ws = foldl reducer Map.empty ws
+frequency = foldl reducer Map.empty
   where reducer m w = alter updater w m
         updater Nothing = Just 1
         updater (Just n) = Just (n + 1)
 
 allFreqs :: [Comment] -> Map Text Int
-allFreqs cs =
-  frequency $
-  mconcat $
-  fmap (words . view commentText) cs
+allFreqs =
+  frequency .
+  mconcat .
+  fmap (words . view commentText)
 
 -- findUniqueWords :: Map Text Int -> [Text] -> [Text]
 -- findUniqueWords freqs ws = filter pred
 --   where
 
 -- wordWeights :: [Comment] ->  Map Text Double
+
+findDefault :: Ord k => a -> Map k a -> k -> a
+findDefault d = flip $ Map.findWithDefault d
+
 distance :: Map Word Int -> Words -> Words -> Double
 distance freqs as bs = weightOf unionWords / weightOf intersectionWords
   where unionWords =
@@ -79,14 +81,11 @@ distance freqs as bs = weightOf unionWords / weightOf intersectionWords
         intersectionWords =
           Set.intersection (Set.fromList as)
                            (Set.fromList bs)
-        weightOf ws =
-          fromIntegral $
-          sum $
-          fmap (\w ->
-                  fromMaybe 0 $
-                  Map.lookup w freqs) $
-          Set.toList ws
-
+        weightOf =
+          fromIntegral .
+          sum .
+          fmap (findDefault 0 freqs) .
+          Set.toList
 
 -- centerCost :: (a -> a -> Double) -> [a] -> a -> Double
 -- centerCost distance points center =
@@ -106,16 +105,12 @@ distance freqs as bs = weightOf unionWords / weightOf intersectionWords
 
 stripPopularWords :: Map Word Int -> Words -> Words
 stripPopularWords freqs = filter f
-  where f w =
-          case Map.lookup w freqs of
-            Nothing -> True
-            Just n -> n < 2
+  where f =
+          (2 >) .
+          findDefault 0 freqs
 
 format :: Show a => a -> IO ()
-format x =
-  putStr $
-  (show x) ++
-  "\n\n"
+format x = putStr $ show x ++ "\n\n"
 
 main :: IO ()
 main =
@@ -124,4 +119,4 @@ main =
            allFreqs $
            view comments hits
      mapM_ (format . unwords . stripPopularWords freq . words . view commentText)
-           (view comments hits)
+           (view (comments) hits)
