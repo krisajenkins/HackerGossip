@@ -101,11 +101,13 @@ stripPopularWords freqs = filter f
           findDefault 0 freqs
 
 format :: Show a => a -> IO ()
-format x = putStr $ show x ++ "\n\n"
+format x = putStrLn $ show x ++ "\n"
 
 main :: IO ()
 main =
   do comments <- getComments
-     let freq =
-           allFreqs comments
-     mapM_ (format . unwords . stripPopularWords freq . words . view commentText) comments
+     mapM_ (format .
+            unwords .
+            stripPopularWords (allFreqs comments) .
+            words . view commentText)
+           comments
