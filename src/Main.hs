@@ -45,9 +45,8 @@ getComments =
 
 frequency :: [Word] -> Map Text Int
 frequency = foldl reducer Map.empty
-  where reducer m w = alter updater w m
-        updater Nothing = Just 1
-        updater (Just n) = Just (n + 1)
+  where reducer = flip $ alter updater
+        updater = Just . (+ 1) . fromMaybe 0
 
 allFreqs :: [Comment] -> Map Text Int
 allFreqs =
@@ -55,14 +54,8 @@ allFreqs =
   mconcat .
   fmap (words . view commentText)
 
--- findUniqueWords :: Map Text Int -> [Text] -> [Text]
--- findUniqueWords freqs ws = filter pred
---   where
-
--- wordWeights :: [Comment] ->  Map Text Double
-
 findDefault :: Ord k => a -> Map k a -> k -> a
-findDefault d = flip $ Map.findWithDefault d
+findDefault = flip . Map.findWithDefault
 
 distance :: Map Word Int -> Words -> Words -> Double
 distance freqs as bs = weightOf unionWords / weightOf intersectionWords
@@ -78,27 +71,10 @@ distance freqs as bs = weightOf unionWords / weightOf intersectionWords
           fmap (findDefault 0 freqs) .
           Set.toList
 
--- centerCost :: (a -> a -> Double) -> [a] -> a -> Double
--- centerCost distance points center =
---   sum (fmap distanceSquared points)
---   where distanceSquared x =
---           (distance center x) *
---           (distance center x)
-
--- chooseCenter :: (a -> a -> Double) -> [a]
--- chooseCenter distance points = _
-
--- group :: (a -> a -> Double) -> [a] -> [a] -> [[a]]
--- group distance centers points = _
-
--- kmedoids :: Int -> (a -> a -> Double) -> [a] -> [a]
--- kmedoids = _
-
 stripPopularWords :: Map Word Int -> Words -> Words
-stripPopularWords freqs = filter f
-  where f =
-          (2 >) .
-          findDefault 0 freqs
+stripPopularWords freqs =
+  filter ((< 2) .
+          findDefault 0 freqs)
 
 format :: Show a => a -> IO ()
 format x = putStrLn $ show x ++ "\n"
