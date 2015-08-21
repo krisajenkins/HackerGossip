@@ -7,19 +7,19 @@ module Main where
 import           Control.Lens
 import           Control.Monad
 import           Data.Aeson
-import           Data.Map      (Map, alter)
-import qualified Data.Map      as Map
+import           Data.Aeson.Lens
+import           Data.Map        (Map, alter)
+import qualified Data.Map        as Map
 import           Data.Maybe
 import           Data.Monoid
--- import           Data.Set      (Set)
-import qualified Data.Set      as Set
-import           Data.Text     hiding (filter, foldl, head)
+import qualified Data.Set        as Set
+import           Data.Text       hiding (filter, foldl, head)
 import           GHC.Generics
 import           Network.Wreq
-import           Prelude       hiding (Word, unwords, words)
+import           Prelude         hiding (Word, unwords, words)
 
 endpoint :: String
-endpoint = "http://hn.algolia.com/api/v1/search?tags=comment&hitsPerPage=200"
+endpoint = "http://hn.algolia.com/api/v1/search?tags=comment&hitsPerPage=50"
 
 type Word = Text
 type Words = [Word]
@@ -31,26 +31,17 @@ data Comment =
   deriving (Eq,Show,Read,Generic)
 makeLenses ''Comment
 
+instance ToJSON Comment
 instance FromJSON Comment where
   parseJSON (Object o) = Comment <$> o .: "comment_text"
                                  <*> o .: "author"
                                  <*> o .: "story_title"
   parseJSON _ = mzero
 
-data Hit =
-  Hit {_comments :: [Comment]}
-  deriving (Eq,Show,Generic)
-makeLenses ''Hit
-
-instance FromJSON Hit where
-  parseJSON (Object o) = Hit <$> o .: "hits"
-  parseJSON _ = mzero
-
-getHits :: IO Hit
-getHits =
+getComments :: IO [Comment]
+getComments =
   do response <- get endpoint
-     page <- asJSON response
-     return $ page ^. responseBody
+     return $ response ^.. responseBody . key "hits" . _Array . traverse . _JSON
 
 frequency :: [Word] -> Map Text Int
 frequency = foldl reducer Map.empty
@@ -114,9 +105,7 @@ format x = putStr $ show x ++ "\n\n"
 
 main :: IO ()
 main =
-  do hits <- getHits
+  do comments <- getComments
      let freq =
-           allFreqs $
-           view comments hits
-     mapM_ (format . unwords . stripPopularWords freq . words . view commentText)
-           (view (comments) hits)
+           allFreqs comments
+     mapM_ (format . unwords . stripPopularWords freq . words . view commentText) comments
